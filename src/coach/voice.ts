@@ -10,9 +10,13 @@ class CoachVoice {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       const load = () => {
         const voices = window.speechSynthesis.getVoices();
+        const fr = voices.filter((v) => /^fr/i.test(v.lang));
+        // Prefer high-quality neural voices, then Microsoft, then anything FR.
         this.frVoice =
-          voices.find((v) => /fr-FR/i.test(v.lang) && /google|natural|enhanced/i.test(v.name)) ??
-          voices.find((v) => /^fr/i.test(v.lang)) ??
+          fr.find((v) => /google|natural|neural|enhanced|siri/i.test(v.name)) ??
+          fr.find((v) => /microsoft/i.test(v.name) && !/desktop/i.test(v.name)) ??
+          fr.find((v) => /fr-FR/i.test(v.lang)) ??
+          fr[0] ??
           null;
       };
       load();
@@ -36,8 +40,10 @@ class CoachVoice {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = persona.voice.lang;
-    u.rate = persona.voice.rate;
-    u.pitch = persona.voice.pitch;
+    // clamp to a natural range — extreme pitch is what makes TTS sound "buzzy"
+    u.rate = Math.max(0.85, Math.min(1.15, persona.voice.rate));
+    u.pitch = Math.max(0.9, Math.min(1.2, persona.voice.pitch));
+    u.volume = 1;
     if (this.frVoice) u.voice = this.frVoice;
     window.speechSynthesis.speak(u);
   }

@@ -24,6 +24,19 @@ class StockfishEngine {
   private listeners: Set<Listener> = new Set();
   private ready = false;
   private booting: Promise<void> | null = null;
+  // Serializes engine commands: the single worker can only run one `go` at a
+  // time, so overlapping calls must queue or one promise would hang forever.
+  private queue: Promise<unknown> = Promise.resolve();
+
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(task, task);
+    // keep the chain alive even if a task rejects
+    this.queue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
 
   /** Boot the worker and complete the UCI handshake. Idempotent. */
   async init(): Promise<void> {
@@ -82,27 +95,40 @@ class StockfishEngine {
    */
   async getBestMove(fen: string, opts: { movetime?: number; depth?: number } = {}): Promise<BestMove | null> {
     await this.init();
-    return new Promise((resolve) => {
-      const onLine: Listener = (line) => {
-        if (line.startsWith("bestmove")) {
-          this.listeners.delete(onLine);
-          const token = line.split(" ")[1];
-          if (!token || token === "(none)") {
-            resolve(null);
-            return;
-          }
-          resolve({
-            from: token.slice(0, 2),
-            to: token.slice(2, 4),
-            promotion: token.length > 4 ? token.slice(4, 5) : undefined,
-          });
-        }
-      };
-      this.listeners.add(onLine);
-      this.send(`position fen ${fen}`);
-      if (opts.depth) this.send(`go depth ${opts.depth}`);
-      else this.send(`go movetime ${opts.movetime ?? 600}`);
-    });
+    return this.enqueue(
+      () =>
+        new Promise<BestMove | null>((resolve) => {
+          let settled = false;
+          const finish = (v: BestMove | null) => {
+            if (settled) return;
+            settled = true;
+            this.listeners.delete(onLine);
+            clearTimeout(timer);
+            resolve(v);
+          };
+          const onLine: Listener = (line) => {
+            if (line.startsWith("bestmove")) {
+              const token = line.split(" ")[1];
+              if (!token || token === "(none)") return finish(null);
+              finish({
+                from: token.slice(0, 2),
+                to: token.slice(2, 4),
+                promotion: token.length > 4 ? token.slice(4, 5) : undefined,
+              });
+            }
+          };
+          // safety net: if the worker never answers, stop and bail out
+          const budget = (opts.movetime ?? 800) + 5000;
+          const timer = setTimeout(() => {
+            this.send("stop");
+            finish(null);
+          }, budget);
+          this.listeners.add(onLine);
+          this.send(`position fen ${fen}`);
+          if (opts.depth) this.send(`go depth ${opts.depth}`);
+          else this.send(`go movetime ${opts.movetime ?? 600}`);
+        })
+    );
   }
 
   /**
@@ -112,28 +138,42 @@ class StockfishEngine {
   async evaluate(fen: string, depth = 12): Promise<EngineScore> {
     await this.init();
     const stm = sideToMoveFromFen(fen);
-    return new Promise((resolve) => {
-      let last: EngineScore = { cp: 0 };
-      const onLine: Listener = (line) => {
-        if (line.startsWith("info") && line.includes(" score ")) {
-          const mateMatch = line.match(/score mate (-?\d+)/);
-          const cpMatch = line.match(/score cp (-?\d+)/);
-          if (mateMatch) {
-            const mate = parseInt(mateMatch[1], 10);
-            last = { mate: stm === "w" ? mate : -mate };
-          } else if (cpMatch) {
-            const cp = parseInt(cpMatch[1], 10);
-            last = { cp: stm === "w" ? cp : -cp };
-          }
-        } else if (line.startsWith("bestmove")) {
-          this.listeners.delete(onLine);
-          resolve(last);
-        }
-      };
-      this.listeners.add(onLine);
-      this.send(`position fen ${fen}`);
-      this.send(`go depth ${depth}`);
-    });
+    return this.enqueue(
+      () =>
+        new Promise<EngineScore>((resolve) => {
+          let last: EngineScore = { cp: 0 };
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            this.listeners.delete(onLine);
+            clearTimeout(timer);
+            resolve(last);
+          };
+          const onLine: Listener = (line) => {
+            if (line.startsWith("info") && line.includes(" score ")) {
+              const mateMatch = line.match(/score mate (-?\d+)/);
+              const cpMatch = line.match(/score cp (-?\d+)/);
+              if (mateMatch) {
+                const mate = parseInt(mateMatch[1], 10);
+                last = { mate: stm === "w" ? mate : -mate };
+              } else if (cpMatch) {
+                const cp = parseInt(cpMatch[1], 10);
+                last = { cp: stm === "w" ? cp : -cp };
+              }
+            } else if (line.startsWith("bestmove")) {
+              finish();
+            }
+          };
+          const timer = setTimeout(() => {
+            this.send("stop");
+            finish();
+          }, 5000);
+          this.listeners.add(onLine);
+          this.send(`position fen ${fen}`);
+          this.send(`go depth ${depth}`);
+        })
+    );
   }
 
   dispose() {

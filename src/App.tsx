@@ -80,9 +80,16 @@ export default function App() {
         <div className="topbar-mid">
           <span className="diff-chip">vs Stockfish</span>
         </div>
-        <button className="btn ghost small" onClick={newGame}>
-          ↻ Nouvelle partie
-        </button>
+        <div className="topbar-actions">
+          {game.status !== "over" && (
+            <button className="btn ghost small" onClick={game.resign} title="Terminer et voir ta story">
+              🏁 Voir ma story
+            </button>
+          )}
+          <button className="btn ghost small" onClick={newGame}>
+            ↻ Nouvelle partie
+          </button>
+        </div>
       </header>
 
       <main className="game-grid">

@@ -115,10 +115,16 @@ export function useGambitGame() {
     }
     setStatus("thinking");
     const cfg = DIFFICULTY_CONFIG[difficultyRef.current];
-    const best = await engine.getBestMove(chess.fen(), { movetime: cfg.movetime });
+    let best = await engine.getBestMove(chess.fen(), { movetime: cfg.movetime });
     if (!best) {
-      finalize();
-      return;
+      // engine timed out / no answer: keep the game alive with a legal move
+      const legal = chess.moves({ verbose: true });
+      if (legal.length === 0) {
+        finalize();
+        return;
+      }
+      const pick = legal[Math.floor(Math.random() * legal.length)];
+      best = { from: pick.from, to: pick.to, promotion: pick.promotion };
     }
     const moved = chess.move({ from: best.from, to: best.to, promotion: best.promotion ?? "q" });
     const score = await engine.evaluate(chess.fen(), ANALYSIS_DEPTH);
@@ -193,10 +199,14 @@ export function useGambitGame() {
       const prevPlayerAdv = playerIsWhite ? evalBefore : -evalBefore;
 
       setFen(chess.fen());
+      // Lock the board straight away so a fast second move can't fire a second
+      // concurrent engine command (which would dead-lock the single worker).
+      setStatus("thinking");
 
       // Analyse the resulting position, then react.
       void (async () => {
-        const score: EngineScore = await engine.evaluate(chess.fen(), ANALYSIS_DEPTH);
+        try {
+          const score: EngineScore = await engine.evaluate(chess.fen(), ANALYSIS_DEPTH);
         const evalAfter = scoreToNumber(score);
         lastEvalRef.current = evalAfter;
         setEvalWhite(evalAfter);
@@ -250,6 +260,11 @@ export function useGambitGame() {
           return;
         }
         await engineTurn();
+        } catch (err) {
+          console.error("[gambit] move flow error", err);
+          // never leave the board locked on an error
+          if (!chessRef.current.isGameOver()) setStatus("playing");
+        }
       })();
 
       return true;
@@ -289,11 +304,31 @@ export function useGambitGame() {
       turnStartRef.current = performance.now();
       // If the player is black, the engine opens.
       if (playerColorRef.current === "b") {
-        await engineTurn();
+        try {
+          await engineTurn();
+        } catch (err) {
+          console.error("[gambit] opening move error", err);
+          setStatus("playing");
+        }
       }
     },
     [emitCoach, engineTurn]
   );
+
+  // End the game now and surface the story. The outcome reflects the position
+  // so stopping while ahead celebrates a win rather than labelling a defeat.
+  const resign = useCallback(() => {
+    if (status === "idle" || status === "over") return;
+    coachVoice.stop();
+    const playerIsWhite = playerColorRef.current === "w";
+    const playerAdv = playerIsWhite ? lastEvalRef.current : -lastEvalRef.current;
+    let outcome: GameResult["outcome"] = "draw";
+    if (playerAdv > 200) outcome = "win";
+    else if (playerAdv < -200) outcome = "loss";
+    setResult({ outcome, reason: "Partie terminée" });
+    setStatus("over");
+    emitCoach(outcome === "win" ? "winning" : outcome === "loss" ? "losing" : "draw");
+  }, [status, emitCoach]);
 
   const playerColor = playerColorRef.current;
 
@@ -316,5 +351,6 @@ export function useGambitGame() {
     lastPlayerQuality,
     start,
     playerMove,
+    resign,
   };
 }

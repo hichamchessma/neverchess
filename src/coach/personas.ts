@@ -9,7 +9,7 @@ export const PERSONAS: Persona[] = [
     tagline: "Dur mais juste. Il te pousse à fond.",
     emoji: "🎖️",
     accent: "#fb923c",
-    voice: { rate: 1.05, pitch: 0.8, lang: "fr-FR" },
+    voice: { rate: 1.02, pitch: 0.95, lang: "fr-FR" },
     lines: {
       gameStart: [
         { text: "Debout soldat. On joue pour gagner, pas pour participer.", mood: "hype" },
@@ -76,7 +76,7 @@ export const PERSONAS: Persona[] = [
     tagline: "Calme, patient, il t'apprend à respirer.",
     emoji: "🧘",
     accent: "#34d399",
-    voice: { rate: 0.92, pitch: 1.0, lang: "fr-FR" },
+    voice: { rate: 0.95, pitch: 1.02, lang: "fr-FR" },
     lines: {
       gameStart: [
         { text: "Respire. Une partie d'échecs, c'est cent petites décisions calmes.", mood: "calm" },
@@ -143,7 +143,7 @@ export const PERSONAS: Persona[] = [
     tagline: "Théâtral, drôle, il met le show.",
     emoji: "🎭",
     accent: "#a78bfa",
-    voice: { rate: 1.0, pitch: 1.15, lang: "fr-FR" },
+    voice: { rate: 1.0, pitch: 1.1, lang: "fr-FR" },
     lines: {
       gameStart: [
         { text: "Mesdames et messieurs, le rideau se lève ! Que le spectacle commence.", mood: "hype" },
