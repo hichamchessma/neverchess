@@ -59,9 +59,7 @@ export default function App() {
   };
 
   const newGame = () => {
-    coachVoice.stop();
-    // returning to idle by starting fresh selection
-    window.location.reload();
+    game.reset(); // back to the home screen to re-pick coach / colour / level
   };
 
   if (game.status === "idle") {
@@ -81,12 +79,7 @@ export default function App() {
           <span className="diff-chip">vs Stockfish</span>
         </div>
         <div className="topbar-actions">
-          {game.status !== "over" && (
-            <button className="btn ghost small" onClick={game.resign} title="Terminer et voir ta story">
-              🏁 Voir ma story
-            </button>
-          )}
-          <button className="btn ghost small" onClick={newGame}>
+          <button className="btn ghost small" onClick={newGame} title="Revenir au menu">
             ↻ Nouvelle partie
           </button>
         </div>
@@ -95,13 +88,33 @@ export default function App() {
       <main className="game-grid">
         <section className="board-col">
           <EvalBar evalWhite={game.evalWhite} orientation={orientation} />
-          <GameBoard
-            fen={game.fen}
-            orientation={orientation}
-            interactive={game.status === "playing"}
-            lastMove={lastMove}
-            onMove={game.playerMove}
-          />
+          <div className="board-stack">
+            <GameBoard
+              fen={game.fen}
+              orientation={orientation}
+              interactive={game.status === "playing"}
+              lastMove={lastMove}
+              onMove={game.playerMove}
+            />
+            <div className="game-controls">
+              <button
+                className="ctrl-btn"
+                onClick={game.undo}
+                disabled={!game.canUndo}
+                title="Annuler ton dernier coup"
+              >
+                <span className="ctrl-ico">⟲</span> Annuler
+              </button>
+              <button
+                className="ctrl-btn danger"
+                onClick={game.resign}
+                disabled={game.status === "over"}
+                title="Abandonner et voir ta story"
+              >
+                <span className="ctrl-ico">🏳️</span> Abandonner
+              </button>
+            </div>
+          </div>
         </section>
 
         <aside className="side-col">

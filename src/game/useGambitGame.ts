@@ -330,6 +330,42 @@ export function useGambitGame() {
     emitCoach(outcome === "win" ? "winning" : outcome === "loss" ? "losing" : "draw");
   }, [status, emitCoach]);
 
+  const canUndo = status === "playing" && moves.some((m) => m.isPlayer);
+
+  // Take back: revert the engine's reply and your last move so you can retry.
+  const undo = useCallback(() => {
+    if (status !== "playing") return;
+    const chess = chessRef.current;
+    if (!moves.some((m) => m.isPlayer)) return;
+    coachVoice.stop();
+
+    const playerColor = playerColorRef.current;
+    const before = chess.history().length;
+    chess.undo();
+    if (chess.turn() !== playerColor && chess.history().length > 0) chess.undo();
+    const removed = before - chess.history().length;
+
+    const newMoves = moves.slice(0, Math.max(0, moves.length - removed));
+    lastEvalRef.current = newMoves.length ? newMoves[newMoves.length - 1].evalWhite : 0;
+    consecutiveBadRef.current = 0;
+
+    setMoves(newMoves);
+    setEvalWhite(lastEvalRef.current);
+    setFen(chess.fen());
+    setCoach(null);
+    turnStartRef.current = performance.now();
+  }, [status, moves]);
+
+  // Back to the home screen (re-pick coach, colour, difficulty).
+  const reset = useCallback(() => {
+    coachVoice.stop();
+    setStatus("idle");
+    setResult(null);
+    setCoach(null);
+    setMoves([]);
+    setEvalWhite(0);
+  }, []);
+
   const playerColor = playerColorRef.current;
 
   const lastPlayerQuality = useMemo(() => {
@@ -349,8 +385,11 @@ export function useGambitGame() {
     engineReady,
     playerColor,
     lastPlayerQuality,
+    canUndo,
     start,
     playerMove,
     resign,
+    undo,
+    reset,
   };
 }

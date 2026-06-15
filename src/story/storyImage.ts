@@ -144,91 +144,122 @@ export function renderStory(
     ctx.fillStyle = rg;
     ctx.fillRect(0, 0, W, H);
   };
-  blob(160, 200, 520, "rgba(139,92,246,0.35)");
-  blob(940, 1750, 560, "rgba(34,211,238,0.22)");
+  blob(180, 240, 560, "rgba(139,92,246,0.32)");
+  blob(920, 1720, 600, "rgba(34,211,238,0.20)");
 
+  const M = 80; // side margin
   ctx.textAlign = "left";
 
-  // brand
+  // ---- header: brand + result badge ----
   ctx.fillStyle = "#f4f4ff";
-  ctx.font = '800 54px "Segoe UI", sans-serif';
-  ctx.fillText("♟ GAMBIT", 80, 130);
-  ctx.fillStyle = "rgba(167,167,197,0.9)";
-  ctx.font = '500 30px "Segoe UI", sans-serif';
-  ctx.fillText("ma partie, racontée", 80, 180);
+  ctx.font = '800 50px "Segoe UI", sans-serif';
+  ctx.fillText("♟ GAMBIT", M, 120);
+  ctx.fillStyle = "rgba(167,167,197,0.85)";
+  ctx.font = '500 28px "Segoe UI", sans-serif';
+  ctx.fillText("ma partie, racontée", M, 162);
 
-  // result badge
   const rm = RESULT_META[data.result.outcome];
-  ctx.textAlign = "right";
+  ctx.font = '800 40px "Segoe UI", sans-serif';
+  const bw = ctx.measureText(rm.label).width + 44;
+  roundRect(ctx, W - M - bw, 92, bw, 60, 30);
+  ctx.fillStyle = rm.color + "22";
+  ctx.fill();
+  ctx.strokeStyle = rm.color;
+  ctx.lineWidth = 2;
+  roundRect(ctx, W - M - bw, 92, bw, 60, 30);
+  ctx.stroke();
   ctx.fillStyle = rm.color;
-  ctx.font = '800 46px "Segoe UI", sans-serif';
-  ctx.fillText(rm.label, W - 80, 150);
+  ctx.textAlign = "center";
+  ctx.fillText(rm.label, W - M - bw / 2, 134);
   ctx.textAlign = "left";
 
-  // TAG
+  // ---- tag + headline ----
   ctx.fillStyle = data.persona.accent;
-  ctx.font = '700 40px "Segoe UI", sans-serif';
-  ctx.fillText(data.moment.tag, 80, 320);
+  ctx.font = '700 36px "Segoe UI", sans-serif';
+  ctx.fillText(data.moment.tag.toUpperCase(), M, 268);
 
-  // headline (wrapped)
   ctx.fillStyle = "#ffffff";
-  ctx.font = '800 70px "Segoe UI", sans-serif';
-  wrapText(ctx, data.moment.headline, 80, 410, W - 160, 82);
+  ctx.font = '800 64px "Segoe UI", sans-serif';
+  wrapText(ctx, data.moment.headline, M, 344, W - 2 * M, 74, 3);
 
-  // board
-  const boardSize = 760;
+  // ---- board ----
+  const boardSize = 660;
   const bx = (W - boardSize) / 2;
-  const by = 650;
-  // soft shadow
+  const by = 560;
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.6)";
-  ctx.shadowBlur = 60;
-  ctx.shadowOffsetY = 30;
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = 50;
+  ctx.shadowOffsetY = 24;
   ctx.fillStyle = "#000";
   roundRect(ctx, bx, by, boardSize, boardSize, 14);
   ctx.fill();
   ctx.restore();
   drawBoard(ctx, data.moment.fenAfter, bx, by, boardSize, data.playerIsWhite, data.moment.highlight);
+  // drawBoard leaves textAlign/baseline centered for the glyphs — reset them.
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
 
-  // coach quote card
-  const qy = by + boardSize + 70;
-  ctx.fillStyle = "rgba(255,255,255,0.05)";
-  roundRect(ctx, 80, qy, W - 160, 230, 24);
+  // ---- coach quote card ----
+  const cardX = M;
+  const cardY = by + boardSize + 56; // 1272
+  const cardW = W - 2 * M;
+  const cardH = 224;
+  ctx.fillStyle = "rgba(255,255,255,0.045)";
+  roundRect(ctx, cardX, cardY, cardW, cardH, 24);
   ctx.fill();
-  ctx.strokeStyle = data.persona.accent + "66";
-  ctx.lineWidth = 2;
-  roundRect(ctx, 80, qy, W - 160, 230, 24);
+  // accent left bar
+  ctx.fillStyle = data.persona.accent;
+  roundRect(ctx, cardX, cardY, 8, cardH, 4);
+  ctx.fill();
+  ctx.strokeStyle = data.persona.accent + "55";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 24);
   ctx.stroke();
 
-  ctx.font = '700 36px "Segoe UI", sans-serif';
+  const padL = cardX + 44;
+  ctx.font = '700 34px "Segoe UI", sans-serif';
   ctx.fillStyle = data.persona.accent;
-  ctx.fillText(`${data.persona.emoji} ${data.persona.name}`, 120, qy + 64);
-  ctx.font = 'italic 500 36px "Segoe UI", sans-serif';
+  ctx.fillText(`${data.persona.emoji}  ${data.persona.name}`, padL, cardY + 56);
+  ctx.font = 'italic 500 33px "Segoe UI", sans-serif';
   ctx.fillStyle = "#e8e8ff";
-  wrapText(ctx, `" ${data.coachLine} "`, 120, qy + 120, W - 240, 48);
+  const quote = truncate(data.coachLine, 130);
+  wrapText(ctx, `« ${quote} »`, padL, cardY + 112, cardW - 88, 44, 3);
 
-  // stats strip
-  const sy = qy + 300;
+  // ---- stats strip ----
+  const sy = cardY + cardH + 96; // ~1592
   const stat = (label: string, value: string, x: number, color: string) => {
     ctx.textAlign = "center";
     ctx.fillStyle = color;
-    ctx.font = '800 64px "Segoe UI", sans-serif';
-    ctx.fillText(value, x, sy + 40);
+    ctx.font = '800 60px "Segoe UI", sans-serif';
+    ctx.fillText(value, x, sy);
     ctx.fillStyle = "rgba(167,167,197,0.95)";
-    ctx.font = '500 28px "Segoe UI", sans-serif';
-    ctx.fillText(label, x, sy + 84);
+    ctx.font = '600 26px "Segoe UI", sans-serif';
+    ctx.fillText(label.toUpperCase(), x, sy + 42);
     ctx.textAlign = "left";
   };
-  stat("Précision", `${data.stats.accuracy}%`, W * 0.25, "#22d3ee");
+  stat("Précision", `${data.stats.accuracy}%`, W * 0.22, "#22d3ee");
   stat("Brillants", `${data.stats.brilliants}`, W * 0.5, "#a78bfa");
-  stat("Coups", `${data.stats.moves}`, W * 0.75, "#f4f4ff");
+  stat("Coups", `${data.stats.moves}`, W * 0.78, "#f4f4ff");
 
-  // footer CTA
+  // ---- footer CTA pill ----
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.65)";
-  ctx.font = '600 32px "Segoe UI", sans-serif';
-  ctx.fillText("Trouve TON moment fort → joue sur GAMBIT", W / 2, H - 70);
+  ctx.font = '600 30px "Segoe UI", sans-serif';
+  const cta = "Trouve TON moment fort  →  GAMBIT";
+  const ctaW = ctx.measureText(cta).width + 64;
+  roundRect(ctx, (W - ctaW) / 2, H - 118, ctaW, 64, 32);
+  ctx.fillStyle = "rgba(139,92,246,0.18)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(139,92,246,0.5)";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, (W - ctaW) / 2, H - 118, ctaW, 64, 32);
+  ctx.stroke();
+  ctx.fillStyle = "#e9e4ff";
+  ctx.fillText(cta, W / 2, H - 76);
   ctx.textAlign = "left";
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 1).trimEnd() + "…" : s;
 }
 
 function wrapText(
@@ -237,20 +268,32 @@ function wrapText(
   x: number,
   y: number,
   maxWidth: number,
-  lineHeight: number
-) {
+  lineHeight: number,
+  maxLines = 99
+): number {
   const words = text.split(" ");
+  const lines: string[] = [];
   let line = "";
-  let yy = y;
   for (const w of words) {
     const test = line ? `${line} ${w}` : w;
     if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, yy);
+      lines.push(line);
       line = w;
-      yy += lineHeight;
     } else {
       line = test;
     }
   }
-  if (line) ctx.fillText(line, x, yy);
+  if (line) lines.push(line);
+
+  // clamp to maxLines, adding an ellipsis to the last visible line
+  const visible = lines.slice(0, maxLines);
+  if (lines.length > maxLines && visible.length) {
+    let last = visible[visible.length - 1];
+    while (ctx.measureText(last + "…").width > maxWidth && last.length > 1) {
+      last = last.slice(0, -1);
+    }
+    visible[visible.length - 1] = last + "…";
+  }
+  visible.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+  return visible.length;
 }
