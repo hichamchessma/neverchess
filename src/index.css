@@ -48,14 +48,44 @@ body {
   font-family: var(--font-body);
   color: var(--text);
   background: var(--bg-0);
-  background-image:
-    radial-gradient(1200px 600px at 15% -10%, rgba(139, 92, 246, 0.18), transparent 60%),
-    radial-gradient(1000px 500px at 100% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
-    radial-gradient(900px 700px at 50% 120%, rgba(139, 92, 246, 0.1), transparent 60%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* drifting aurora layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  background-image:
+    radial-gradient(40% 40% at 18% 12%, rgba(139, 92, 246, 0.28), transparent 60%),
+    radial-gradient(38% 38% at 85% 8%, rgba(34, 211, 238, 0.18), transparent 60%),
+    radial-gradient(45% 45% at 70% 92%, rgba(168, 85, 247, 0.2), transparent 62%),
+    radial-gradient(40% 40% at 12% 88%, rgba(34, 211, 238, 0.12), transparent 60%);
+  filter: blur(20px);
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+
+/* faint dot grid for depth */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+@keyframes aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -2%, 0) scale(1.08); }
+  100% { transform: translate3d(-2%, 2%, 0) scale(1.04); }
 }
 
 h1, h2, h3, h4 {

@@ -2,18 +2,25 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { PERSONAS } from "../coach/personas";
 import type { Persona } from "../coach/types";
-import { DIFFICULTY_CONFIG, type Difficulty } from "../game/useGambitGame";
+import { DIFFICULTY_CONFIG, TEMPO_CONFIG, type Difficulty, type Tempo } from "../game/useGambitGame";
 
 type Props = {
   engineReady: boolean;
-  onStart: (opts: { persona: Persona; difficulty: Difficulty; playerColor: "w" | "b" }) => void;
+  onStart: (opts: {
+    persona: Persona;
+    difficulty: Difficulty;
+    tempo: Tempo;
+    playerColor: "w" | "b";
+  }) => void;
 };
 
 const DIFFS = Object.keys(DIFFICULTY_CONFIG) as Difficulty[];
+const TEMPOS = Object.keys(TEMPO_CONFIG) as Tempo[];
 
 export default function StartScreen({ engineReady, onStart }: Props) {
   const [personaId, setPersonaId] = useState(PERSONAS[0].id);
   const [difficulty, setDifficulty] = useState<Difficulty>("intermediaire");
+  const [tempo, setTempo] = useState<Tempo>("blitz");
   const [color, setColor] = useState<"w" | "b">("w");
 
   const persona = PERSONAS.find((p) => p.id === personaId)!;
@@ -61,6 +68,23 @@ export default function StartScreen({ engineReady, onStart }: Props) {
           </div>
         </section>
 
+        <section>
+          <h3 className="cfg-label">Cadence</h3>
+          <div className="tempo-grid">
+            {TEMPOS.map((t) => (
+              <button
+                key={t}
+                className={`tempo-card ${t === tempo ? "selected" : ""}`}
+                onClick={() => setTempo(t)}
+              >
+                <span className="tempo-emoji">{TEMPO_CONFIG[t].emoji}</span>
+                <span className="tempo-name">{TEMPO_CONFIG[t].label}</span>
+                <span className="tempo-desc">{TEMPO_CONFIG[t].desc}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className="cfg-row">
           <div>
             <h3 className="cfg-label">Niveau de l'adversaire</h3>
@@ -96,7 +120,7 @@ export default function StartScreen({ engineReady, onStart }: Props) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           disabled={!engineReady}
-          onClick={() => onStart({ persona, difficulty, playerColor: color })}
+          onClick={() => onStart({ persona, difficulty, tempo, playerColor: color })}
         >
           {engineReady ? `Jouer avec ${persona.name} ${persona.emoji}` : "Chargement du moteur…"}
         </motion.button>

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import "./App.css";
-import { useGambitGame, type Difficulty } from "./game/useGambitGame";
+import { useGambitGame, type Difficulty, type Tempo } from "./game/useGambitGame";
 import { PERSONAS, getPersona } from "./coach/personas";
 import type { Persona } from "./coach/types";
 import { coachVoice } from "./coach/voice";
@@ -13,11 +13,18 @@ import EvalBar from "./components/EvalBar";
 import CoachPanel from "./components/CoachPanel";
 import MoveList from "./components/MoveList";
 import StoryCard from "./components/StoryCard";
+import CheckmateCeremony from "./components/CheckmateCeremony";
 
 export default function App() {
   const game = useGambitGame();
   const [persona, setPersona] = useState<Persona>(PERSONAS[0]);
   const [voiceOn, setVoiceOn] = useState(true);
+  // After a game ends we first play the ceremony, then reveal the story.
+  const [endPhase, setEndPhase] = useState<"ceremony" | "story">("ceremony");
+
+  useEffect(() => {
+    if (game.status === "over") setEndPhase("ceremony");
+  }, [game.status]);
 
   const playerIsWhite = game.playerColor === "w";
   const orientation = playerIsWhite ? "white" : "black";
@@ -52,7 +59,12 @@ export default function App() {
     coachVoice.setEnabled(next);
   };
 
-  const startGame = (opts: { persona: Persona; difficulty: Difficulty; playerColor: "w" | "b" }) => {
+  const startGame = (opts: {
+    persona: Persona;
+    difficulty: Difficulty;
+    tempo: Tempo;
+    playerColor: "w" | "b";
+  }) => {
     setPersona(opts.persona);
     coachVoice.setEnabled(voiceOn);
     game.start(opts);
@@ -69,7 +81,8 @@ export default function App() {
   const activePersona = getPersona(persona.id);
 
   return (
-    <div className="app">
+    <div className={`app ${game.inDanger ? "danger" : ""}`}>
+      {game.inDanger && game.status !== "over" && <div className="danger-vignette" />}
       <header className="topbar">
         <div className="brand small">
           <span className="brand-mark">♟</span>
@@ -130,8 +143,16 @@ export default function App() {
       </main>
 
       <AnimatePresence>
-        {story && game.result && (
+        {game.status === "over" && game.result && endPhase === "ceremony" && (
+          <CheckmateCeremony
+            key="ceremony"
+            result={game.result}
+            onContinue={() => setEndPhase("story")}
+          />
+        )}
+        {game.status === "over" && game.result && endPhase === "story" && story && (
           <StoryCard
+            key="story"
             moment={story.moment}
             result={game.result}
             persona={activePersona}
